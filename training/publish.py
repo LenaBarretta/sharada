@@ -40,8 +40,11 @@ never been trained on still gets an answer.
 Code, examples and the training run: <https://github.com/LenaBarretta/sharada>.
 The design and the experiments behind it: <https://lenatriestounderstand.com/notes/llm/024-rlcr/>.
 
+```bash
+pip install sharada
+```
+
 ```python
-# pip install git+https://github.com/LenaBarretta/sharada
 from sharada import DecisionModel
 
 model = DecisionModel.from_pretrained("{repo}")
