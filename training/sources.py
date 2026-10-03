@@ -397,8 +397,16 @@ def _offer(options: list[str], truth: int, ordered: bool, rng: random.Random) ->
 
 
 def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
-          include_holdout: bool = False, sources=SOURCES, log=print) -> list[Example]:
-    """Every source that loads, in one shuffled list. Sources that do not load are skipped out loud."""
+          include_holdout: bool = False, variants: int = 1, sources=SOURCES,
+          log=print) -> list[Example]:
+    """Every source that loads, in one shuffled list. Sources that do not load are skipped out loud.
+
+    `variants` draws each source more than once. A second pass over the same rows asks them through a
+    different wording of the question and offers a different subset of the options, and where the
+    source has more rows than its cap, it reaches different rows as well. For the small label sets
+    that is the only way to see more than a few thousand examples of them, and the wording is the
+    thing the model is supposed to be reading.
+    """
     collected: list[Example] = []
     skipped = []
     for source in sources:
@@ -406,7 +414,9 @@ def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
             continue
         cap = max(20, int(source.cap * cap_scale))
         try:
-            got = examples(source, which, seed, cap)
+            got = []
+            for pass_ in range(max(1, variants)):
+                got += examples(source, which, seed + 97 * pass_, cap)
         except Unusable as problem:
             skipped.append((source, str(problem)))
             log(f"  skipped {source.task} ({source.dataset}): {problem}")

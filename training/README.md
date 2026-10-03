@@ -52,3 +52,31 @@ Source("my-task", "me/my-dataset", "text", "label",
   zero-shot numbers in the model cards come from.
 * A source that fails to load is skipped with a line saying why. Dataset ids on the Hub move, and a
   three-hour run should not die for one of them — check the skipped list at the top of the log.
+
+## Running it for quality rather than for the clock
+
+A Kaggle session is cut off at 12 hours, so a long run is given a little less than that and finishes
+itself: `--max-hours 11` stops the loop, keeps the best weights, fits the temperatures, writes the
+report and leaves a checkpoint behind.
+
+```bash
+python training/run.py --encoder answerdotai/ModernBERT-base --out runs/base \
+    --steps 40000 --batch-size 16 --accumulate 2 --cap-scale 3 --variants 2 \
+    --eval-every 2000 --eval-examples 500 --max-hours 11
+```
+
+What each of those is for:
+
+* `--steps` **is the plan, not the clock.** The cosine schedule is laid out over it; a run cut off at
+  60% of its schedule ends at a high learning rate and is worse than a shorter schedule that finished.
+  The log prints a measured rate and an eta within the first hundred steps — if it does not fit, stop
+  and start again with a smaller `--steps` and `--fresh`.
+* `--accumulate` buys an effective batch without the memory of one. 16 × 2 on a T4 is the same gradient
+  as a batch of 32 and fits where 32 does not.
+* `--cap-scale` and `--variants` are two different kinds of more data: `--cap-scale` reaches further
+  into the big datasets, `--variants` draws each label set again with a different wording of its
+  question and a different subset of its options. The small label sets only grow through the second
+  one, and the wording is what the model is meant to be reading.
+* `--keep best` (the default) finishes on the weights with the lowest held-out log loss rather than the
+  last step's. On a mixture the two are rarely the same: one label set is still improving while another
+  has started to overfit.

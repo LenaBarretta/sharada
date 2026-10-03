@@ -37,6 +37,7 @@ from sharada.train import brier_loss                                            
 import sources                                                                              # noqa: E402
 
 CHECKPOINT = "checkpoint.pt"
+BEST = "best.pt"
 
 
 def arguments(argv=None):
@@ -45,14 +46,24 @@ def arguments(argv=None):
     parse.add_argument("--encoder", default="answerdotai/ModernBERT-base")
     parse.add_argument("--out", type=pathlib.Path, default=pathlib.Path("runs/base"))
     parse.add_argument("--steps", type=int, default=12_000)
+    parse.add_argument("--max-hours", type=float, default=None,
+                       help="stop cleanly after this long and finish the run (Kaggle cuts a session "
+                            "off at 12 hours; a checkpoint is left behind either way)")
     parse.add_argument("--batch-size", type=int, default=16)
+    parse.add_argument("--accumulate", type=int, default=1,
+                       help="micro-batches per step; the effective batch is this times --batch-size")
     parse.add_argument("--lr", type=float, default=3e-5)
     parse.add_argument("--warmup", type=float, default=0.06, help="share of the steps spent warming up")
     parse.add_argument("--loss", default="cross_entropy", choices=["cross_entropy", "brier"])
     parse.add_argument("--text-tokens", type=int, default=256)
     parse.add_argument("--cap-scale", type=float, default=1.0, help="scale every source's cap")
+    parse.add_argument("--variants", type=int, default=1,
+                       help="draw each label set this many times, each with different wordings of "
+                            "its question and different subsets of its options")
     parse.add_argument("--eval-every", type=int, default=1000)
     parse.add_argument("--eval-examples", type=int, default=250, help="per label set, when measuring")
+    parse.add_argument("--keep", default="best", choices=["best", "last"],
+                       help="which weights to finish with: the best measured, or the last step's")
     parse.add_argument("--checkpoint-every", type=int, default=500)
     parse.add_argument("--seed", type=int, default=0)
     parse.add_argument("--device", default=None)
@@ -78,7 +89,7 @@ def mixture(args):
             raise SystemExit(f"no such label set: {sorted(missing)}")
     say("training mix:")
     training = sources.build("train", seed=args.seed, cap_scale=args.cap_scale,
-                             sources=chosen, log=say)
+                             variants=args.variants, sources=chosen, log=say)
     say("\nmeasured on (the held-out part of each source, plus the label sets kept out of training):")
     held_out = sources.build("eval", seed=args.seed, cap_scale=args.eval_examples / 2500,
                              include_holdout=True, sources=chosen, log=say)
@@ -114,26 +125,33 @@ def train(args, model, training, held_out, device):
     state, done = _resume(args, model, optimizer, scaler, device)
     history = state.get("history", [])
     start = state.get("step", 0)
+    best = state.get("best", {"log_loss": math.inf, "step": 0})
     if done:
+        _keep_best(args, model, best, device)
         return history, start
 
     stream = forever(training, model, args.batch_size, args.seed + start)
     model.train()
     running, began = [], time.time()
+    deadline = began + args.max_hours * 3600 if args.max_hours else math.inf
+    step = start
     for step in range(start + 1, args.steps + 1):
         for group in optimizer.param_groups:
             group["lr"] = learning_rate(step, args.steps, args.lr, args.warmup)
-        batch = next(stream).to(device)
-        with torch.amp.autocast("cuda", dtype=torch.float16, enabled=device.startswith("cuda")):
-            scores = model(batch)
-            loss = loss_fn(scores, batch) if loss_fn else F.cross_entropy(scores, batch.labels)
         optimizer.zero_grad(set_to_none=True)
-        scaler.scale(loss).backward()
+        total = 0.0
+        for _ in range(args.accumulate):          # one step, however many micro-batches it is made of
+            batch = next(stream).to(device)
+            with torch.amp.autocast("cuda", dtype=torch.float16, enabled=device.startswith("cuda")):
+                scores = model(batch)
+                loss = loss_fn(scores, batch) if loss_fn else F.cross_entropy(scores, batch.labels)
+            scaler.scale(loss / args.accumulate).backward()
+            total += float(loss) / args.accumulate
         scaler.unscale_(optimizer)
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         scaler.step(optimizer)
         scaler.update()
-        running.append(float(loss))
+        running.append(total)
 
         if step % 100 == 0:
             rate = (time.time() - began) / step_count(step, start)
@@ -144,23 +162,56 @@ def train(args, model, training, held_out, device):
         if step % args.eval_every == 0 or step == args.steps:
             measured = measure(model, held_out, args)
             history.append({"step": step, **measured})
+            mark = ""
+            if measured["log_loss"] < best["log_loss"]:
+                best = {"log_loss": measured["log_loss"], "step": step}
+                torch.save(model.state_dict(), args.out / BEST)
+                mark = "  <- best so far"
             say(f"  step {step}: accuracy {measured['accuracy']:.3f}  log loss {measured['log_loss']:.3f}"
                 f"  calibration error {measured['calibration_error']:.3f}"
-                f"  (unseen label sets: {measured['holdout_accuracy']:.3f})")
+                f"  (unseen label sets: {measured['holdout_accuracy']:.3f}){mark}")
             model.train()
         if step % args.checkpoint_every == 0 or step == args.steps:
-            _save_checkpoint(args, model, optimizer, scaler, step, history)
-    return history, args.steps
+            _save_checkpoint(args, model, optimizer, scaler, step, history, best)
+        if time.time() > deadline:
+            if not history or history[-1]["step"] != step:
+                measured = measure(model, held_out, args)
+                history.append({"step": step, **measured})
+                if measured["log_loss"] < best["log_loss"]:
+                    best = {"log_loss": measured["log_loss"], "step": step}
+                    torch.save(model.state_dict(), args.out / BEST)
+            _save_checkpoint(args, model, optimizer, scaler, step, history, best)
+            say(f"\n{args.max_hours} hours are up at step {step} of {args.steps}. Finishing the run on "
+                f"what is trained; to carry on, start again with the same --out and the checkpoint "
+                f"will pick it up.")
+            break
+    _keep_best(args, model, best, device)
+    return history, step
+
+
+def _keep_best(args, model, best, device) -> None:
+    """Finish with the weights that measured best, not with whatever the last step left behind.
+
+    A long run on a mixture does not improve monotonically: one label set is still getting better
+    while another has started to overfit. The held-out log loss is what decides.
+    """
+    path = args.out / BEST
+    if args.keep != "best" or not path.exists() or not best["step"]:
+        return
+    model.load_state_dict(torch.load(path, map_location=device, weights_only=True))
+    model.to(device)
+    say(f"keeping the weights from step {best['step']} (held-out log loss {best['log_loss']:.4f})")
 
 
 def step_count(step: int, start: int) -> int:
     return max(1, step - start)
 
 
-def _save_checkpoint(args, model, optimizer, scaler, step, history) -> None:
+def _save_checkpoint(args, model, optimizer, scaler, step, history, best) -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     tmp = args.out / (CHECKPOINT + ".writing")
-    torch.save({"step": step, "history": history, "arguments": vars(args) | {"out": str(args.out)},
+    torch.save({"step": step, "history": history, "best": best,
+                "arguments": vars(args) | {"out": str(args.out)},
                 "model": model.state_dict(), "optimizer": optimizer.state_dict(),
                 "scaler": scaler.state_dict()}, tmp)
     tmp.replace(args.out / CHECKPOINT)      # one atomic move: a killed session cannot leave half a file
@@ -233,7 +284,9 @@ def main(argv=None) -> None:
 
     model.save(args.out)
     save_passport(passport, args.out / "passport.json")
-    report = {"encoder": args.encoder, "steps": step, "arguments": vars(args) | {"out": str(args.out)},
+    chosen = max((h for h in history), key=lambda h: -h["log_loss"], default={"step": step})
+    report = {"encoder": args.encoder, "steps": step,
+              "weights_from_step": chosen["step"] if args.keep == "best" else step, "arguments": vars(args) | {"out": str(args.out)},
               "parameters": sum(p.numel() for p in model.parameters()),
               "training_examples": len(training), "held_out_examples": len(held_out),
               "label_sets": len({e.task for e in training}),
