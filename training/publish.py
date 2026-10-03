@@ -82,15 +82,17 @@ three on an untrained model.
 
 {training_description}
 
-Options were shuffled, long label sets were shown as sampled subsets, and each label set was asked
-through several wordings of its question, so the model reads the options and the question rather than
-their positions.
+In training the options were shuffled, long label sets were often shown as a sampled handful, and each
+label set was asked through several wordings of its question — so the model reads the options and the
+question rather than their positions.
 
 ## What it scores
 
-Measured on held-out examples, after one temperature per label set was fitted on them. **ECE** is the
-expected calibration error over 15 equal bands — how far the stated probability is from how often it
-turns out right. Rows marked **unseen** are label sets kept out of training entirely.
+Measured on held-out examples, with **every label offered at once** — all 151 intents of clinc, all 77
+of banking — because that is what a request actually looks like. One temperature per label set was
+fitted on the same held-out examples. **ECE** is the expected calibration error over 15 equal bands:
+how far the stated probability is from how often it turns out right. Rows marked **unseen** are label
+sets kept out of training entirely, never trained on, only measured.
 
 {table}
 
@@ -127,7 +129,8 @@ def table(report: dict) -> str:
     rows = ["| label set | options | kind | accuracy | log loss | ECE | T |",
             "| --- | --- | --- | --- | --- | --- | --- |"]
     for task, row in sorted(report["per_task"].items(),
-                            key=lambda kv: (kv[1]["trained_on"], kv[0]), reverse=True):
+                            key=lambda kv: (kv[1]["trained_on"], kv[1]["options"], kv[1]["accuracy"]),
+                            reverse=True):
         name = task if row["trained_on"] else f"{task} *(unseen)*"
         rows.append(f"| {name} | {row['options']} | {row['kind']} | {row['accuracy']:.3f} | "
                     f"{row['log_loss']:.3f} | {row['calibration_error']:.3f} | {row['temperature']} |")
@@ -137,11 +140,15 @@ def table(report: dict) -> str:
 def description(report: dict) -> str:
     arguments = report["arguments"]
     unseen = report.get("unseen_label_sets") or []
+    kept = report.get("weights_from_step")
     sentence = (f"{report['training_examples']:,} examples from {report['label_sets']} public label sets "
                 f"— intents, topics, review scores, emotion, toxicity, spam and entailment — for "
-                f"{report['steps']:,} steps of {arguments['batch_size']}, "
+                f"{report['steps']:,} steps of "
+                f"{arguments['batch_size'] * arguments.get('accumulate', 1)}, "
                 f"AdamW at {arguments['lr']:g} with a cosine schedule, "
-                f"{arguments['loss'].replace('_', ' ')} loss.")
+                f"{arguments['loss'].replace('_', ' ')} loss. The published weights are the ones that "
+                f"measured best on held-out data, at step {kept:,} of {report['steps']:,} — past that "
+                f"the model stops answering better and only grows more certain.")
     if unseen:
         sentence += (f" {len(unseen)} further label sets were held out of training entirely and only "
                      f"measured: {', '.join(unseen)}.")
