@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Sharada" width="200">
+  <img src="https://raw.githubusercontent.com/LenaBarretta/sharada/main/docs/logo.png" alt="Sharada" width="200">
 </p>
 
 <h1 align="center">Sharada</h1>
@@ -76,8 +76,8 @@ Accuracy and calibration per label set are in each model card, measured on label
 ## Three things the architecture guarantees
 
 The request is laid out as one sequence — text, question, then every option as a parallel branch — and a
-mask decides who may read whom. Both are in [`layout.py`](sharada/layout.py) and
-[`masking.py`](sharada/masking.py), and they buy three properties that hold by construction, not because
+mask decides who may read whom. Both are in [`layout.py`](https://github.com/LenaBarretta/sharada/blob/main/sharada/layout.py) and
+[`masking.py`](https://github.com/LenaBarretta/sharada/blob/main/sharada/masking.py), and they buy three properties that hold by construction, not because
 training got them approximately right:
 
 1. **The order of the options cannot matter.** Every option branch starts at the same position id, and
@@ -90,7 +90,7 @@ training got them approximately right:
 3. **The text is read once.** Text tokens read only text tokens, so their states do not depend on the
    question. Ten questions about one document are ten cheap read-outs over one encoding of it.
 
-These are the tests in [`tests/test_model.py`](tests/test_model.py), checked on an untrained model.
+These are the tests in [`tests/test_model.py`](https://github.com/LenaBarretta/sharada/blob/main/tests/test_model.py), checked on an untrained model.
 
 ## Fine-tune it on your own labels
 
@@ -122,7 +122,7 @@ task on the held-out part and writes a calibration passport. Useful arguments:
 | `batch_size`, `lr`, `max_epochs`, `patience` | `16`, `2e-5`, `10`, `2` | |
 
 Mixing several tasks in one `fit` is the normal case — give each one its own `task` name and each gets
-its own temperature. See [`examples/finetune_your_own.py`](examples/finetune_your_own.py), which trains
+its own temperature. See [`examples/finetune_your_own.py`](https://github.com/LenaBarretta/sharada/blob/main/examples/finetune_your_own.py), which trains
 on a CSV.
 
 ## The number next to the answer is supposed to be true
@@ -166,8 +166,8 @@ policy = escalation_budget(policy, probabilities, budget=0.05)
 
 ## Train the base models yourself
 
-[`training/`](training) has the whole run: a mix of public label sets in
-[`sources.py`](training/sources.py) — intents, topics, sentiment, toxicity, spam, entailment, review
+[`training/`](https://github.com/LenaBarretta/sharada/tree/main/training) has the whole run: a mix of public label sets in
+[`sources.py`](https://github.com/LenaBarretta/sharada/blob/main/training/sources.py) — intents, topics, sentiment, toxicity, spam, entailment, review
 scores — each one presented with several question phrasings, shuffled options and sampled option
 subsets, so the model learns to read the options rather than their positions. Some label sets are held
 out of training entirely and only measured, which is where the zero-shot numbers come from.
@@ -177,7 +177,7 @@ python training/run.py --encoder answerdotai/ModernBERT-base --out runs/base
 ```
 
 It checkpoints every few hundred steps and resumes from the checkpoint if it finds one, which is what
-makes it survive a Kaggle session; [`training/kaggle.ipynb`](training/kaggle.ipynb) is the notebook
+makes it survive a Kaggle session; [`training/kaggle.ipynb`](https://github.com/LenaBarretta/sharada/blob/main/training/kaggle.ipynb) is the notebook
 wrapper. One free T4: about an hour for base, about three for large.
 
 ## What it will not do
