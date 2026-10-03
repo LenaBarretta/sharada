@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# weights, checkpoints, runs
+*.pt
+*.bin
+*.safetensors
+checkpoints/
+runs/
+out/
+wandb/
+
+# datasets cache
+data/
+.cache/
+
+.DS_Store

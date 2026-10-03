@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sharada"
+version = "0.1.0.dev0"
+description = "Typed decisions from text in one forward pass — options in the request, calibrated probabilities, easy to fine-tune."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "Lena Barretta" }]
+keywords = ["text-classification", "zero-shot-classification", "calibration", "uncertainty", "decision-making"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.2",
+    "transformers==5.12.1",
+    "safetensors>=0.4",
+    "huggingface-hub>=0.26",
+]
+
+[project.optional-dependencies]
+train = ["datasets>=4"]
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/LenaBarretta/sharada"
+Article = "https://lenatriestounderstand.com/notes/llm/024-rlcr/"
+
+[tool.setuptools.packages.find]
+include = ["sharada*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

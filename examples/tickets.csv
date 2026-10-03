@@ -1,0 +1,25 @@
+text,label
+"the invoice is wrong again, you charged me twice for March",billing
+"I was double charged and want one of the payments back",billing
+"my subscription renewed at the wrong price",billing
+"can you send me a VAT invoice for last month",billing
+"the card payment failed but the money left my account",billing
+"you keep billing me after I cancelled in January",billing
+"what is this 4.99 charge on my statement",billing
+"I need a refund for the second seat I never used",billing
+"the app crashes every time I open the reports tab",technical
+"login throws a 500 error on Safari but not Chrome",technical
+"export to CSV produces an empty file",technical
+"two factor codes arrive ten minutes late",technical
+"the dashboard has been stuck loading since the update",technical
+"webhooks stopped firing yesterday around 3pm",technical
+"I cannot upload anything larger than 2MB, it just hangs",technical
+"search returns results from a workspace I was removed from",technical
+"do you have a plan for a team of 40 and what does it cost",sales
+"is there a discount for annual payment",sales
+"we are evaluating you against two competitors, can we get a call",sales
+"does the enterprise tier include single sign on",sales
+"I want to add 15 seats, how does billing change",sales
+"can we get a trial extension while legal reviews the contract",sales
+"who do I talk to about a reseller agreement",sales
+"is there a nonprofit price",sales
