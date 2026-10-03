@@ -92,7 +92,7 @@ def mixture(args):
                              variants=args.variants, sources=chosen, log=say)
     say("\nmeasured on (the held-out part of each source, plus the label sets kept out of training):")
     held_out = sources.build("eval", seed=args.seed, cap_scale=args.eval_examples / 2500,
-                             include_holdout=True, sources=chosen, log=say)
+                             include_holdout=True, full_options=True, sources=chosen, log=say)
     return training, held_out
 
 

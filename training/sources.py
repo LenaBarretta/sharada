@@ -83,6 +83,16 @@ TREC_FINE = (
 )
 
 
+# arXiv files papers under codes; the model reads its options, so they are spelled out.
+ARXIV = (
+    ("math.AC", "commutative algebra"), ("math.GR", "group theory"), ("math.ST", "theoretical statistics"),
+    ("cs.AI", "artificial intelligence"), ("cs.CV", "computer vision"), ("cs.NE", "neural networks"),
+    ("cs.SY", "systems and control"), ("cs.CE", "computational science and engineering"),
+    ("cs.PL", "programming languages"), ("cs.IT", "information theory"),
+    ("cs.DS", "data structures and algorithms"),
+)
+
+
 # ── what it is trained on ────────────────────────────────────────────────────────────────────────
 
 SOURCES: tuple[Source, ...] = (
@@ -191,7 +201,11 @@ SOURCES: tuple[Source, ...] = (
     Source("hateful", "cardiffnlp/tweet_eval", "text", "label",
            ("Is this message hateful towards a group of people?",
             "Does this attack a group?"),
-           config="hate", kind="binary", options=("no", "yes"), cap=2500),
+           config="hate", kind="binary", options=("no", "yes"), cap=2500,
+           # Its own test split was built to be a different problem from its training split, and
+           # everything scores around chance on it; the tenth carved off the training data measures
+           # what the model actually learned.
+           eval_split=None),
     Source("irony", "cardiffnlp/tweet_eval", "text", "label",
            ("Is this meant ironically?",
             "Does the writer mean the opposite of what they wrote?"),
@@ -254,11 +268,11 @@ SOURCES: tuple[Source, ...] = (
             "What verdict does this fact-check reach?"),
            options=("false", "partly true", "true", "unproven"),
            revision="refs/convert/parquet", cap=1500, holdout=True),
-    Source("stance", "cardiffnlp/tweet_eval", "text", "label",
-           ("What is this tweet's stance on climate change?",
-            "Where does the writer stand on the subject?"),
-           config="stance_climate", options=("neither for nor against", "against it", "in favour of it"),
-           cap=1000, holdout=True),
+    Source("arxiv-category", "ccdv/arxiv-classification", "text", "label",
+           ("Which arXiv category was this paper filed under?",
+            "Which part of the literature does this paper belong to?",
+            "What is this paper about?"),
+           config="no_ref", rename=ARXIV, cap=1500, eval_split="test", holdout=True),
     Source("medical-pair", "curaihealth/medical_questions_pairs", "question_1", "label",
            ("Is this the same medical question as '{}'?",
             "Would one answer serve both this and '{}'?"),
@@ -339,9 +353,14 @@ def _rows(source: Source, which: str, seed: int):
     return rows.shuffle(seed=seed)
 
 
-def examples(source: Source, which: str = "train", seed: int = 0,
-             cap: int | None = None) -> list[Example]:
-    """The examples this source contributes, or `Unusable` if it cannot be read as declared."""
+def examples(source: Source, which: str = "train", seed: int = 0, cap: int | None = None,
+             full_options: bool = False) -> list[Example]:
+    """The examples this source contributes, or `Unusable` if it cannot be read as declared.
+
+    `full_options` offers every label at once instead of a sampled handful. That is what a measurement
+    should do: a user with 77 intents sends all 77, and accuracy over six of them sampled at random is
+    a different, easier question.
+    """
     rows = _rows(source, which, seed)
     label = _column(rows.features, source.label)
     text_columns = (source.text,) if isinstance(source.text, str) else source.text
@@ -375,7 +394,7 @@ def examples(source: Source, which: str = "train", seed: int = 0,
             if not about:
                 continue
             question = question.format(about)
-        shown, truth = _offer(options, truth, ordered, rng)
+        shown, truth = _offer(options, truth, ordered, rng, full_options)
         out.append(Example(text=text, question=question, options=shown, kind=source.kind,
                            task=source.task, label=truth))
     if not out:
@@ -383,9 +402,10 @@ def examples(source: Source, which: str = "train", seed: int = 0,
     return out
 
 
-def _offer(options: list[str], truth: int, ordered: bool, rng: random.Random) -> tuple[list[str], int]:
+def _offer(options: list[str], truth: int, ordered: bool, rng: random.Random,
+           full: bool = False) -> tuple[list[str], int]:
     """Which options this example shows, and where the right one ended up."""
-    if ordered:
+    if ordered or full:
         return list(options), truth                      # a scale is shown whole, in its own order
     shown = list(range(len(options)))
     if len(shown) > MAX_OPTIONS or (len(shown) > SUBSET_RANGE[1] and rng.random() > FULL_LIST_SHARE):
@@ -397,8 +417,8 @@ def _offer(options: list[str], truth: int, ordered: bool, rng: random.Random) ->
 
 
 def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
-          include_holdout: bool = False, variants: int = 1, sources=SOURCES,
-          log=print) -> list[Example]:
+          include_holdout: bool = False, variants: int = 1, full_options: bool = False,
+          sources=SOURCES, log=print) -> list[Example]:
     """Every source that loads, in one shuffled list. Sources that do not load are skipped out loud.
 
     `variants` draws each source more than once. A second pass over the same rows asks them through a
@@ -416,7 +436,7 @@ def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
         try:
             got = []
             for pass_ in range(max(1, variants)):
-                got += examples(source, which, seed + 97 * pass_, cap)
+                got += examples(source, which, seed + 97 * pass_, cap, full_options)
         except Unusable as problem:
             skipped.append((source, str(problem)))
             log(f"  skipped {source.task} ({source.dataset}): {problem}")
