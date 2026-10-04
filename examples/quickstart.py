@@ -5,7 +5,7 @@
 
 from sharada import DecisionModel, Request, latency
 
-MODEL = "LenaBarretta/sharada-base"
+MODEL = "lenabarretta/sharada-base"
 
 TICKET = ("My card still hasn't arrived and I ordered it two weeks ago. The tracking page has said "
           "'in transit' since Monday and nobody answers the chat. I'd like to cancel and get my money "

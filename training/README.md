@@ -13,7 +13,7 @@ Three files:
 python training/run.py --encoder answerdotai/ModernBERT-base  --out runs/base
 python training/run.py --encoder answerdotai/ModernBERT-large --out runs/large --batch-size 8 --lr 2e-5
 
-HF_TOKEN=... python training/publish.py runs/base --repo LenaBarretta/sharada-base
+HF_TOKEN=... python training/publish.py runs/base --repo lenabarretta/sharada-base
 ```
 
 A run writes `model.safetensors`, `config.json`, the tokenizer, `passport.json` (what the calibration

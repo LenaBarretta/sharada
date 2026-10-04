@@ -2,7 +2,7 @@
 
 Three lines should get you a usable model:
 
-    model = DecisionModel.from_pretrained("LenaBarretta/sharada-base")
+    model = DecisionModel.from_pretrained("lenabarretta/sharada-base")
     report = model.fit(examples)
     model.save("my-router")
 

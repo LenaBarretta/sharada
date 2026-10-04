@@ -1,6 +1,6 @@
 """Push a finished run to the Hub, with a model card made out of what was measured.
 
-    HF_TOKEN=... python training/publish.py runs/base --repo LenaBarretta/sharada-base
+    HF_TOKEN=... python training/publish.py runs/base --repo lenabarretta/sharada-base
 
 The card is written from `report.json`, so the numbers on the Hub are the numbers the run produced and
 nobody has to keep them in step by hand. Everything in the run directory goes up except the training
@@ -219,7 +219,7 @@ def main() -> None:
     parse = argparse.ArgumentParser(description=__doc__,
                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parse.add_argument("run", type=pathlib.Path, help="a directory written by training/run.py")
-    parse.add_argument("--repo", required=True, help="e.g. LenaBarretta/sharada-base")
+    parse.add_argument("--repo", required=True, help="e.g. lenabarretta/sharada-base")
     parse.add_argument("--private", action="store_true")
     parse.add_argument("--card-only", action="store_true", help="write the card, upload nothing")
     args = parse.parse_args()

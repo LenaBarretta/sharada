@@ -2,7 +2,7 @@
 
     from sharada import DecisionModel
 
-    model = DecisionModel.from_pretrained("LenaBarretta/sharada-base")
+    model = DecisionModel.from_pretrained("lenabarretta/sharada-base")
     d = model.decide("My card hasn't arrived yet",
                      "Which team should handle this?",
                      ["billing", "technical", "sales"])

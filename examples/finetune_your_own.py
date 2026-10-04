@@ -48,7 +48,7 @@ def main() -> None:
     parse.add_argument("--options", nargs="+", help="fix the options and their order")
     parse.add_argument("--kind", default="choice", choices=["choice", "scale", "binary"])
     parse.add_argument("--task", default="my-task", help="the name the temperature is fitted under")
-    parse.add_argument("--model", default="LenaBarretta/sharada-base")
+    parse.add_argument("--model", default="lenabarretta/sharada-base")
     parse.add_argument("--out", type=pathlib.Path, default=pathlib.Path("my-router"))
     parse.add_argument("--freeze-encoder", action="store_true", help="train the read-out only")
     parse.add_argument("--loss", default="cross_entropy", choices=["cross_entropy", "brier"])

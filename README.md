@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/LenaBarretta/sharada/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="Apache 2.0"></a>
-  <a href="https://huggingface.co/LenaBarretta/sharada-base"><img src="https://img.shields.io/badge/%F0%9F%A4%97-sharada--base-yellow" alt="sharada-base on the Hub"></a>
+  <a href="https://huggingface.co/lenabarretta/sharada-base"><img src="https://img.shields.io/badge/%F0%9F%A4%97-sharada--base-yellow" alt="sharada-base on the Hub"></a>
   <a href="https://lenatriestounderstand.com/notes/llm/024-rlcr/"><img src="https://img.shields.io/badge/write--up-lenatriestounderstand-ff69b4" alt="the write-up"></a>
 </p>
 
@@ -22,7 +22,7 @@ than part of the weights.
 ```python
 from sharada import DecisionModel
 
-model = DecisionModel.from_pretrained("LenaBarretta/sharada-base")
+model = DecisionModel.from_pretrained("lenabarretta/sharada-base")
 
 d = model.decide(
     text="My card still hasn't arrived and I ordered it two weeks ago.",
@@ -67,9 +67,9 @@ Python 3.10+, `torch` and `transformers`; CPU is enough to run it.
 
 | model | encoder | parameters | what it is for |
 | --- | --- | --- | --- |
-| `LenaBarretta/sharada-base` | ModernBERT-base | 150M | the default; fine-tune this one |
-| `LenaBarretta/sharada-large` *(in training)* | ModernBERT-large | 400M | a few points better, ~2.5× the time |
-| `LenaBarretta/sharada-multilingual` *(next)* | mmBERT | 300M | the same architecture over 1800+ languages |
+| `lenabarretta/sharada-base` | ModernBERT-base | 150M | the default; fine-tune this one |
+| `lenabarretta/sharada-large` *(in training)* | ModernBERT-large | 400M | a few points better, ~2.5× the time |
+| `lenabarretta/sharada-multilingual` *(next)* | mmBERT | 300M | the same architecture over 1800+ languages |
 
 A checkpoint carries its own encoder, limits and temperatures in `config.json`, so a bigger model — or a
 multilingual one, built on a multilingual encoder — is another repository rather than another version of
@@ -111,7 +111,7 @@ examples = [
     ...
 ]
 
-model = DecisionModel.from_pretrained("LenaBarretta/sharada-base")
+model = DecisionModel.from_pretrained("lenabarretta/sharada-base")
 report = model.fit(examples)        # holds out 20%, stops when held-out log loss stops improving
 model.save("my-router")
 
