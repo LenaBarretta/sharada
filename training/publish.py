@@ -102,6 +102,18 @@ sets kept out of training entirely, never trained on, only measured.
 Overall: accuracy **{accuracy}**, log loss **{log_loss}**, Brier **{brier}**, calibration error
 **{calibration_error}** (95% interval {interval}).
 
+## The family
+
+{family}
+
+Everything that makes a model what it is lives in the checkpoint: which encoder it wants, how long a
+text it reads, the temperature fitted for each task. The library reads all of that out of
+`config.json`, so a bigger model or a multilingual one is another repository rather than another
+version of `sharada` — and `from_pretrained` loads any of them with the same line.
+
+That is also why a multilingual model cannot be a flag on this one. This encoder is English down to its
+tokenizer; reading another language means other weights, not another setting.
+
 ## The probabilities expire
 
 A temperature is fitted on a distribution, not on a model, so it goes stale when the traffic moves. The
@@ -140,6 +152,28 @@ def table(report: dict) -> str:
     return "\n".join(rows)
 
 
+# The last field says what to write next to a checkpoint that cannot be downloaded yet; clear it when
+# that one is published, and every card rendered afterwards stops promising it.
+FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to fine-tune", ""),
+          ("sharada-large", "ModernBERT-large, 400M", "a few points better, about 2.5× the time",
+           "in training"),
+          ("sharada-multilingual", "mmBERT, 300M", "the same architecture over 1800+ languages",
+           "next"))
+
+
+def family(repo: str) -> str:
+    """The checkpoints, with it visible which of them you can actually download today."""
+    owner, here = repo.split("/")
+    rows = ["| checkpoint | encoder | |", "| --- | --- | --- |"]
+    for name, encoder, what, pending in FAMILY:
+        if name == here:
+            cell = f"**`{owner}/{name}`** — you are here"
+        else:
+            cell = f"`{owner}/{name}`" + (f" — {pending}" if pending else "")
+        rows.append(f"| {cell} | {encoder} | {what} |")
+    return "\n".join(rows)
+
+
 def description(report: dict) -> str:
     arguments = report["arguments"]
     unseen = report.get("unseen_label_sets") or []
@@ -165,6 +199,7 @@ def render(run: pathlib.Path, repo: str) -> str:
     device = report["arguments"].get("device") or ""
     return CARD.format(
         repo=repo,
+        family=family(repo),
         encoder=report["encoder"],
         parameters=f"{report['parameters'] / 1e6:.0f}M",
         text_tokens=report["arguments"]["text_tokens"],

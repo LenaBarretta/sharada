@@ -68,7 +68,13 @@ Python 3.10+, `torch` and `transformers`; CPU is enough to run it.
 | model | encoder | parameters | what it is for |
 | --- | --- | --- | --- |
 | `LenaBarretta/sharada-base` | ModernBERT-base | 150M | the default; fine-tune this one |
-| `LenaBarretta/sharada-large` | ModernBERT-large | 400M | a few points better, ~2.5× the time |
+| `LenaBarretta/sharada-large` *(in training)* | ModernBERT-large | 400M | a few points better, ~2.5× the time |
+| `LenaBarretta/sharada-multilingual` *(next)* | mmBERT | 300M | the same architecture over 1800+ languages |
+
+A checkpoint carries its own encoder, limits and temperatures in `config.json`, so a bigger model — or a
+multilingual one, built on a multilingual encoder — is another repository rather than another version of
+the library. It also means a multilingual model cannot be a flag on an English one: this encoder is
+English down to its tokenizer, and another language means other weights.
 
 Accuracy and calibration per label set are in each model card, measured on label sets the model was
 **not** trained on as well as on the ones it was.
