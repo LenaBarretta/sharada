@@ -65,11 +65,16 @@ Python 3.10+, `torch` and `transformers`; CPU is enough to run it.
 
 ## Models
 
-| model | encoder | parameters | what it is for |
-| --- | --- | --- | --- |
-| `lenabarretta/sharada-base` | ModernBERT-base | 150M | the default; fine-tune this one |
-| `lenabarretta/sharada-large` *(in training)* | ModernBERT-large | 400M | a few points better, ~2.5× the time |
-| `lenabarretta/sharada-multilingual` *(next)* | mmBERT | 300M | the same architecture over 1800+ languages |
+| model | parameters | accuracy | ECE | one decision | |
+| --- | --- | --- | --- | --- | --- |
+| `lenabarretta/sharada-base` | 150M | 0.813 | 0.008 | 19.8 ms | the default; fine-tune this one |
+| `lenabarretta/sharada-large` | 397M | 0.834 | 0.009 | 26.6 ms | better, and better still on label sets it has never seen |
+| `lenabarretta/sharada-multilingual` *(next)* | 300M | | | | the same architecture over 1800+ languages, on mmBERT |
+
+Accuracy is over 38 label sets with every label offered at once — banking on all 77 intents, clinc on
+all 151 — and **ECE** is how far the stated probability lands from how often it turns out right. The
+gap between the two models is widest where it matters most: on label sets neither was trained on,
+`large` reads arXiv categories at 0.456 against `base`'s 0.317.
 
 A checkpoint carries its own encoder, limits and temperatures in `config.json`, so a bigger model — or a
 multilingual one, built on a multilingual encoder — is another repository rather than another version of

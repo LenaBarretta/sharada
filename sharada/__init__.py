@@ -28,4 +28,4 @@ __all__ = [
     "evaluate", "calibration_error", "risk_coverage", "latency",
     "Policy", "Action", "escalation_budget",
 ]
-__version__ = "0.1.0.dev1"
+__version__ = "0.1.0"
