@@ -40,6 +40,7 @@ class Source:
     label: str | tuple[str, ...]     # column holding the answer; first one present wins
     questions: tuple[str, ...]       # phrasings; they take `{}` when `asks_about` is set
     config: str | None = None
+    configs: tuple[str, ...] = ()    # several language editions of one dataset, pooled under one task
     revision: str | None = None      # e.g. the Hub's auto-converted "refs/convert/parquet" branch
     kind: str = "choice"
     options: tuple[str, ...] | None = None    # plain-word option names, in label order
@@ -49,12 +50,13 @@ class Source:
     eval_split: str | None = "test"  # None: carve the last tenth out of the training split
     cap: int = 2500                  # at most this many examples per source
     single_label: bool = False       # the label column holds a list; keep the rows with one entry
+    multilingual: bool = False       # left out of the English runs; see `build`
     holdout: bool = False
 
     def as_dict(self) -> dict:
         return {"task": self.task, "dataset": self.dataset, "config": self.config,
-                "revision": self.revision, "kind": self.kind, "holdout": self.holdout,
-                "cap": self.cap}
+                "configs": list(self.configs), "revision": self.revision, "kind": self.kind,
+                "multilingual": self.multilingual, "holdout": self.holdout, "cap": self.cap}
 
 
 # TREC's fifty fine-grained question types, which the dataset stores as codes like `ENTY:cremat`.
@@ -91,6 +93,21 @@ ARXIV = (
     ("cs.PL", "programming languages"), ("cs.IT", "information theory"),
     ("cs.DS", "data structures and algorithms"),
 )
+
+
+# Languages for the multilingual run. MASSIVE and XNLI are the same label sets in every language;
+# SIB-200 is the same seven topics across two hundred, which is what makes an unseen-language
+# measurement possible at all: hold some of them out and the label set is familiar while the language
+# is not.
+MASSIVE_LANGUAGES = ("de", "fr", "es", "pt", "it", "nl", "pl", "ru", "tr", "ar", "hi", "ja",
+                     "ko", "zh-CN", "vi", "id", "sw", "fa")
+XNLI_LANGUAGES = ("ar", "bg", "de", "el", "es", "fr", "hi", "ru", "sw", "th", "tr", "ur", "vi", "zh")
+SIB_TRAINED = ("deu_Latn", "fra_Latn", "spa_Latn", "por_Latn", "ita_Latn", "nld_Latn", "pol_Latn",
+               "rus_Cyrl", "ukr_Cyrl", "tur_Latn", "arb_Arab", "heb_Hebr", "hin_Deva", "ben_Beng",
+               "tam_Taml", "tha_Thai", "vie_Latn", "ind_Latn", "zho_Hans", "kor_Hang", "swh_Latn",
+               "amh_Ethi", "yor_Latn", "npi_Deva")
+SIB_UNSEEN = ("kat_Geor", "hye_Armn", "khm_Khmr", "mya_Mymr", "uzn_Latn", "als_Latn",
+              "aka_Latn", "kan_Knda")
 
 
 # ── what it is trained on ────────────────────────────────────────────────────────────────────────
@@ -258,6 +275,28 @@ SOURCES: tuple[Source, ...] = (
            config="labeled_final", kind="binary", options=("no", "yes"), asks_about="sentence2",
            cap=2500),
 
+    # ── other languages ────────────────────────────────────────────────────────────────────────
+    # Only in the multilingual run (`--multilingual`), so the English checkpoints stay reproducible.
+    # Each of these pools many language editions of one dataset under a single task: the label names
+    # are identical across them, so what changes between examples is the language of the text, which
+    # is exactly what the model has to stop caring about.
+    Source("massive-intent-multi", "mteb/amazon_massive_intent", "text", ("label_text", "label"),
+           ("Which assistant request is this?",
+            "What does the user want?",
+            "Pick the intent of this command."),
+           configs=MASSIVE_LANGUAGES, cap=12000, eval_split="validation", multilingual=True),
+    Source("topic-multi", "mteb/sib200", "text", "label",
+           ("Which topic is this passage about?",
+            "What subject does this text belong to?",
+            "Pick the topic."),
+           configs=SIB_TRAINED, cap=6000, eval_split="test", multilingual=True),
+    Source("entailment-multi", "facebook/xnli", "premise", "label",
+           ("Does it follow from this that {}?",
+            "If the text is true, is it also true that {}?",
+            "Given this, how likely is it that {}?"),
+           kind="scale", options=("yes", "maybe", "no"), asks_about="hypothesis",
+           configs=XNLI_LANGUAGES, cap=12000, eval_split="validation", multilingual=True),
+
     # ── held out of training, measured only ──────────────────────────────────────────────────
     Source("massive-scenario", "mteb/amazon_massive_scenario", "text", ("label_text", "label"),
            ("Which part of the assistant does this belong to?",
@@ -282,6 +321,10 @@ SOURCES: tuple[Source, ...] = (
            ("Is this sentence an opinion or a statement of fact?",
             "Is the writer describing or judging?"),
            cap=1500, holdout=True),
+    Source("topic-unseen-languages", "mteb/sib200", "text", "label",
+           ("Which topic is this passage about?",
+            "What subject does this text belong to?"),
+           configs=SIB_UNSEEN, cap=2000, eval_split="test", multilingual=True, holdout=True),
     Source("poem-tone", "google-research-datasets/poem_sentiment", "verse_text", "label",
            ("What is the feeling of this line of verse?",
             "How does this line read?"),
@@ -291,6 +334,18 @@ SOURCES: tuple[Source, ...] = (
 
 
 # ── turning a source into examples ───────────────────────────────────────────────────────────────
+
+def _columns(source: Source) -> tuple[str, ...]:
+    text = (source.text,) if isinstance(source.text, str) else tuple(source.text)
+    return text + ((source.asks_about,) if source.asks_about else ())
+
+
+def _wanted(source: Source) -> set[str]:
+    """Every column a source might read. Language editions are trimmed to these before being pooled,
+    because `concatenate_datasets` needs them to agree and the extras differ between them."""
+    labels = (source.label,) if isinstance(source.label, str) else tuple(source.label)
+    return set(_columns(source)) | set(labels)
+
 
 class Unusable(Exception):
     """This source cannot be read as declared; the run goes on without it."""
@@ -341,11 +396,23 @@ def _answers(rows, column: str, declared, rename=()) -> tuple[list[str], dict]:
     return options, {key: i for i, key in enumerate(keys)}
 
 
-def _rows(source: Source, which: str, seed: int):
-    from datasets import load_dataset
+def _rows(source: Source, which: str, seed: int, cap: int | None = None):
+    from datasets import concatenate_datasets, load_dataset
 
     split = source.train_split if which == "train" else (source.eval_split or source.train_split)
-    rows = load_dataset(source.dataset, source.config, split=split, revision=source.revision)
+    if source.configs:
+        # One task, several languages. Each contributes its share of the cap, so adding a language
+        # widens the task rather than making it bigger, and the label names are the same throughout.
+        share = max(20, (cap or source.cap) // len(source.configs))
+        parts = []
+        for language in source.configs:
+            part = load_dataset(source.dataset, language, split=split, revision=source.revision)
+            part = part.shuffle(seed=seed).select(range(min(share, len(part))))
+            parts.append(part.remove_columns([c for c in part.column_names
+                                              if c not in _wanted(source)]))
+        rows = concatenate_datasets(parts)
+    else:
+        rows = load_dataset(source.dataset, source.config, split=split, revision=source.revision)
     if source.eval_split is None:                       # one split only: carve off the last tenth
         rows = rows.shuffle(seed=7)
         cut = max(1, len(rows) // 10)
@@ -361,7 +428,7 @@ def examples(source: Source, which: str = "train", seed: int = 0, cap: int | Non
     should do: a user with 77 intents sends all 77, and accuracy over six of them sampled at random is
     a different, easier question.
     """
-    rows = _rows(source, which, seed)
+    rows = _rows(source, which, seed, cap)
     label = _column(rows.features, source.label)
     text_columns = (source.text,) if isinstance(source.text, str) else source.text
     for column in text_columns:
@@ -418,7 +485,7 @@ def _offer(options: list[str], truth: int, ordered: bool, rng: random.Random,
 
 def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
           include_holdout: bool = False, variants: int = 1, full_options: bool = False,
-          sources=SOURCES, log=print) -> list[Example]:
+          multilingual: bool = False, sources=SOURCES, log=print) -> list[Example]:
     """Every source that loads, in one shuffled list. Sources that do not load are skipped out loud.
 
     `variants` draws each source more than once. A second pass over the same rows asks them through a
@@ -431,6 +498,8 @@ def build(which: str = "train", seed: int = 0, cap_scale: float = 1.0,
     skipped = []
     for source in sources:
         if source.holdout and not include_holdout:
+            continue
+        if source.multilingual and not multilingual:
             continue
         cap = max(20, int(source.cap * cap_scale))
         try:

@@ -80,3 +80,30 @@ What each of those is for:
 * `--keep best` (the default) finishes on the weights with the lowest held-out log loss rather than the
   last step's. On a mixture the two are rarely the same: one label set is still improving while another
   has started to overfit.
+
+## The multilingual run
+
+`--multilingual` adds the label sets that exist in many languages and leaves the English ones in
+place, so the model gains languages instead of trading English for them. Without the flag they are
+skipped entirely, which is what keeps the English checkpoints reproducible.
+
+```bash
+python training/run.py --encoder jhu-clsp/mmBERT-base --out runs/multilingual --multilingual \
+    --steps 15000 --batch-size 8 --accumulate 4 --cap-scale 3 --variants 2 --max-hours 11
+```
+
+mmBERT is ModernBERT with a 256k vocabulary: the same twenty-two layers and the same hidden size as
+`ModernBERT-base`, so it costs about what `base` costs to compute, and the extra 157M parameters are
+the embedding table — memory rather than arithmetic. There is no mmBERT-large, so there is no
+multilingual `large` to train.
+
+A source marked `multilingual=True` pools several language editions of one dataset under a single
+task through `configs`; the cap is split between them, so adding a language widens the task instead
+of enlarging it. That works only because the label names are identical in every edition — MASSIVE's
+sixty intents, XNLI's three answers, SIB-200's seven topics — which is also what makes
+`topic-unseen-languages` meaningful: it is SIB-200 in eight languages kept out of training, so the
+label set is familiar and the language is not.
+
+One honest simplification: a pooled task gets one temperature across all its languages, though
+calibration genuinely differs between them. Per-language calibration is a refinement, not something
+this run does.

@@ -69,7 +69,7 @@ Python 3.10+, `torch` and `transformers`; CPU is enough to run it.
 | --- | --- | --- | --- | --- | --- |
 | `lenabarretta/sharada-base` | 150M | 0.813 | 0.008 | 19.8 ms | the default; fine-tune this one |
 | `lenabarretta/sharada-large` | 397M | 0.834 | 0.009 | 26.6 ms | better, and better still on label sets it has never seen |
-| `lenabarretta/sharada-multilingual` *(in training)* | 300M | | | | the same architecture over 1800+ languages, on mmBERT |
+| `lenabarretta/sharada-multilingual` *(in training)* | 290M | | | | the same architecture over 1800+ languages, on mmBERT |
 
 Accuracy is over 38 label sets with every label offered at once — banking on all 77 intents, clinc on
 all 151 — and **ECE** is how far the stated probability lands from how often it turns out right. The

@@ -57,6 +57,9 @@ def arguments(argv=None):
     parse.add_argument("--loss", default="cross_entropy", choices=["cross_entropy", "brier"])
     parse.add_argument("--text-tokens", type=int, default=256)
     parse.add_argument("--cap-scale", type=float, default=1.0, help="scale every source's cap")
+    parse.add_argument("--multilingual", action="store_true",
+                       help="add the label sets that come in many languages; off by default, so the "
+                            "English checkpoints stay reproducible")
     parse.add_argument("--variants", type=int, default=1,
                        help="draw each label set this many times, each with different wordings of "
                             "its question and different subsets of its options")
@@ -89,10 +92,12 @@ def mixture(args):
             raise SystemExit(f"no such label set: {sorted(missing)}")
     say("training mix:")
     training = sources.build("train", seed=args.seed, cap_scale=args.cap_scale,
-                             variants=args.variants, sources=chosen, log=say)
+                             variants=args.variants, multilingual=args.multilingual,
+                             sources=chosen, log=say)
     say("\nmeasured on (the held-out part of each source, plus the label sets kept out of training):")
     held_out = sources.build("eval", seed=args.seed, cap_scale=args.eval_examples / 2500,
-                             include_holdout=True, full_options=True, sources=chosen, log=say)
+                             include_holdout=True, full_options=True,
+                             multilingual=args.multilingual, sources=chosen, log=say)
     return training, held_out
 
 

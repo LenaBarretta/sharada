@@ -156,7 +156,7 @@ def table(report: dict) -> str:
 # that one is published, and every card rendered afterwards stops promising it.
 FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to fine-tune", ""),
           ("sharada-large", "ModernBERT-large, 400M", "a few points better, about a third slower", ""),
-          ("sharada-multilingual", "mmBERT, 300M", "the same architecture over 1800+ languages",
+          ("sharada-multilingual", "mmBERT-base, 290M", "the same model over many more languages",
            "in training"))
 
 
