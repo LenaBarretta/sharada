@@ -17,6 +17,7 @@ only re-measures.
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import math
 import pathlib
@@ -294,6 +295,9 @@ def main(argv=None) -> None:
               "weights_from_step": chosen["step"] if args.keep == "best" else step, "arguments": vars(args) | {"out": str(args.out)},
               "parameters": sum(p.numel() for p in model.parameters()),
               "training_examples": len(training), "held_out_examples": len(held_out),
+              # how many examples each label set actually contributed, which is not its cap: a small
+              # dataset runs out first, and a pooled multilingual one is split between its languages
+              "training_per_task": dict(sorted(collections.Counter(e.task for e in training).items())),
               "label_sets": len({e.task for e in training}),
               "unseen_label_sets": sorted({e.task for e in held_out} & {s.task for s in sources.holdout_sources()}),
               "overall": {k: scores[k] for k in ("accuracy", "log_loss", "brier",

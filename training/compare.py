@@ -42,9 +42,11 @@ def table() -> str:
         any_row = next(iter(by_model.values()))
         return (any_row["trained_on"], any_row["options"], task)
 
+    trained = {name: r.get("training_per_task", {}) for name, r in reports.items()}
     lines = [MARK,
-             "| label set | what it is | options | base | large | multilingual |",
-             "| --- | --- | --- | --- | --- | --- |"]
+             "| label set | what it is | answer options | trained on | measured on "
+             "| base | large | multilingual |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for task, by_model in sorted(tasks.items(), key=sort_key, reverse=True):
         source = datasets.get(task, {})
         unseen = not next(iter(by_model.values()))["trained_on"]
@@ -55,11 +57,15 @@ def table() -> str:
             where += f"/{source['config']}"
         cells = [f"{by_model[n]['accuracy']:.3f}" if n in by_model else "—" for n, _ in MODELS]
         name = f"{task} *(unseen)*" if unseen else task
-        lines.append(f"| {name} | `{where}` | {next(iter(by_model.values()))['options']} "
-                     f"| {' | '.join(cells)} |")
+        seen = max((trained[n].get(task, 0) for n, _ in MODELS), default=0)
+        any_row = next(iter(by_model.values()))
+        lines.append(f"| {name} | `{where}` | {any_row['options']} "
+                     f"| {f'{seen:,}' if seen else '—'} | {any_row['n']:,} | {' | '.join(cells)} |")
 
     overall = " | ".join(f"**{reports[n]['overall']['accuracy']:.3f}**" for n, _ in MODELS)
-    lines.append(f"| **overall** | | | {overall} |")
+    totals = max(sum(t.values()) for t in trained.values())
+    measured = max(r["held_out_examples"] for r in reports.values())
+    lines.append(f"| **overall** | | | **{totals:,}** | **{measured:,}** | {overall} |")
     lines.append(MARK)
     return "\n".join(lines)
 

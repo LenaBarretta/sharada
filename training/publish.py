@@ -92,6 +92,12 @@ question rather than their positions.
 
 ## What it scores
 
+**Trained on** is what that label set actually contributed to this run — not its cap, since a small
+dataset runs out first and a pooled multilingual one is split between its languages; a dash means the
+model never saw it. **Measured on** is how many held-out examples the accuracy beside it rests on, and
+it is worth reading first: a row measured on ninety-six examples moves by a full point when one answer
+changes.
+
 Measured on held-out examples, with **every label offered at once** — all 151 intents of clinc, all 77
 of banking — because that is what a request actually looks like. One temperature per label set was
 fitted on the same held-out examples. **ECE** is the expected calibration error over 15 equal bands:
@@ -142,13 +148,17 @@ Apache 2.0.
 
 
 def table(report: dict) -> str:
-    rows = ["| label set | options | kind | accuracy | log loss | ECE | T |",
-            "| --- | --- | --- | --- | --- | --- | --- |"]
+    trained = report.get("training_per_task", {})
+    rows = ["| label set | answer options | kind | trained on | measured on "
+            "| accuracy | log loss | ECE | T |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for task, row in sorted(report["per_task"].items(),
                             key=lambda kv: (kv[1]["trained_on"], kv[1]["options"], kv[1]["accuracy"]),
                             reverse=True):
         name = task if row["trained_on"] else f"{task} *(unseen)*"
-        rows.append(f"| {name} | {row['options']} | {row['kind']} | {row['accuracy']:.3f} | "
+        seen = trained.get(task, 0)
+        rows.append(f"| {name} | {row['options']} | {row['kind']} | "
+                    f"{f'{seen:,}' if seen else '—'} | {row['n']:,} | {row['accuracy']:.3f} | "
                     f"{row['log_loss']:.3f} | {row['calibration_error']:.3f} | {row['temperature']} |")
     return "\n".join(rows)
 
@@ -158,7 +168,7 @@ def table(report: dict) -> str:
 FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to fine-tune", ""),
           ("sharada-large", "ModernBERT-large, 400M", "a few points better, about a third slower", ""),
           ("sharada-multilingual-base", "mmBERT-base, 290M", "the same model over many more languages",
-           "in training"),
+           ""),
           ("sharada-multilingual-small", "mmBERT-small, 140M", "narrower body, for throughput rather "
            "than for one fast answer", "in training"))
 
