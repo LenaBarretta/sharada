@@ -108,11 +108,21 @@ class DecisionModel(nn.Module):
 
     # ── saving and loading ────────────────────────────────────────────────────────────────────
     def save(self, path: str | pathlib.Path) -> pathlib.Path:
+        """Weights go out in half precision: the file halves and nothing else changes.
+
+        The encoder was trained under a float16 autocast, so the mantissa bits below half precision
+        were never signal to begin with — storing them costs a download and buys rounding noise
+        (probabilities move by about 2e-4). `from_pretrained` builds a float32 model and copies these
+        into it, so loading, fine-tuning and the optimiser all stay in full precision; only the file
+        on disk is small. Integer tensors are left alone.
+        """
         from safetensors.torch import save_file
 
         path = pathlib.Path(path)
         path.mkdir(parents=True, exist_ok=True)
-        save_file({k: v.contiguous() for k, v in self.state_dict().items()}, path / "model.safetensors")
+        weights = {k: (v.half() if v.is_floating_point() else v).contiguous()
+                   for k, v in self.state_dict().items()}
+        save_file(weights, path / "model.safetensors")
         (path / "config.json").write_text(json.dumps(asdict(self.config), indent=1))
         self.tokenizer.save_pretrained(path)
         return path

@@ -73,6 +73,7 @@ model.save("my-router")
 | text | up to {text_tokens} tokens, plus 48 for the question and 12 per option |
 | kinds of question | `choice` (unordered labels), `scale` (ordered steps), `binary` (yes or no) |
 | output | one probability per option, from a single forward pass |
+| weights | float16 on disk, float32 in memory — a storage format, not quantisation |
 | one decision | {ms_per_question} ms per question{device_note} |
 
 Three properties hold by construction rather than by training: the **order of the options cannot change
@@ -156,8 +157,10 @@ def table(report: dict) -> str:
 # that one is published, and every card rendered afterwards stops promising it.
 FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to fine-tune", ""),
           ("sharada-large", "ModernBERT-large, 400M", "a few points better, about a third slower", ""),
-          ("sharada-multilingual", "mmBERT-base, 290M", "the same model over many more languages",
-           "in training"))
+          ("sharada-multilingual-base", "mmBERT-base, 290M", "the same model over many more languages",
+           "in training"),
+          ("sharada-multilingual-small", "mmBERT-small, 140M", "narrower body, for throughput rather "
+           "than for one fast answer", "in training"))
 
 
 def family(repo: str) -> str:

@@ -107,3 +107,21 @@ label set is familiar and the language is not.
 One honest simplification: a pooled task gets one temperature across all its languages, though
 calibration genuinely differs between them. Per-language calibration is a refinement, not something
 this run does.
+
+## Half-precision weights
+
+`save` writes float16 and `from_pretrained` casts back to float32, so a checkpoint takes half the
+download and the model you load is the full-precision one. This is not quantisation: no layer is
+replaced, no arithmetic changes, and fine-tuning works exactly as it did. Measured on `sharada-base`,
+the round trip moves probabilities by 2.6e-4 and the rounding is idempotent — the second save changes
+nothing, because the weights are already on the float16 grid.
+
+The one case where it would bite: a fine-tune whose updates are smaller than the spacing of that grid
+(around 1e-5 for a weight of 0.01) would be rounded away on save. Nothing at the learning rates here
+comes close.
+
+Real quantisation — int8 — was measured and rejected: on a laptop CPU it gave no speedup at all,
+because at batch 1 the time goes on launching kernels rather than on arithmetic, and it moved
+probabilities by 0.069, which for a model sold on its calibration is not a rounding error. If it is
+ever wanted for throughput, it belongs in a separate, inference-only artifact with its temperatures
+fitted again on the quantised model and its calibration error measured afresh.
