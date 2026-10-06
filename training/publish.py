@@ -168,24 +168,26 @@ def table(report: dict) -> str:
 
 # The last field says what to write next to a checkpoint that cannot be downloaded yet; clear it when
 # that one is published, and every card rendered afterwards stops promising it.
-FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to fine-tune", ""),
-          ("sharada-large", "ModernBERT-large, 400M", "a few points better, about a third slower", ""),
-          ("sharada-multilingual-base", "mmBERT-base, 290M", "the same model over many more languages",
-           ""),
-          ("sharada-multilingual-small", "mmBERT-small, 140M", "narrower body, for throughput rather "
-           "than for one fast answer", ""))
+FAMILY = (("sharada-base", "ModernBERT-base, 150M", "300 MB",
+           "the default, and the one to fine-tune", ""),
+          ("sharada-large", "ModernBERT-large, 397M", "794 MB",
+           "a few points better, about a third slower", ""),
+          ("sharada-multilingual-base", "mmBERT-base, 308M", "616 MB",
+           "the same model over many more languages", ""),
+          ("sharada-multilingual-small", "mmBERT-small, 141M", "282 MB",
+           "narrower body, for throughput rather than for one fast answer", ""))
 
 
 def family(repo: str) -> str:
     """The checkpoints, with it visible which of them you can actually download today."""
     owner, here = repo.split("/")
-    rows = ["| checkpoint | encoder | |", "| --- | --- | --- |"]
-    for name, encoder, what, pending in FAMILY:
+    rows = ["| checkpoint | encoder | download | |", "| --- | --- | --- | --- |"]
+    for name, encoder, size, what, pending in FAMILY:
         if name == here:
             cell = f"**`{owner}/{name}`** — you are here"
         else:
             cell = f"`{owner}/{name}`" + (f" — {pending}" if pending else "")
-        rows.append(f"| {cell} | {encoder} | {what} |")
+        rows.append(f"| {cell} | {encoder} | {size} | {what} |")
     return "\n".join(rows)
 
 

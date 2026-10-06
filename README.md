@@ -65,12 +65,12 @@ Python 3.10+, `torch` and `transformers`; CPU is enough to run it.
 
 ## Models
 
-| model | parameters | accuracy | ECE | one decision | |
-| --- | --- | --- | --- | --- | --- |
-| `lenabarretta/sharada-base` | 150M | 0.813 | 0.008 | 19.8 ms | the default; fine-tune this one |
-| `lenabarretta/sharada-large` | 397M | 0.834 | 0.009 | 26.6 ms | better, and better still on label sets it has never seen |
-| `lenabarretta/sharada-multilingual-base` | 308M | 0.802 | 0.009 | 23.1 ms | the same model over many more languages, on mmBERT |
-| `lenabarretta/sharada-multilingual-small` | 141M | 0.773 | 0.013 | 21.8 ms | half the size, three points behind, and barely faster — for memory, not for latency |
+| model | parameters | download | accuracy | ECE | one decision | |
+| --- | --- | --- | --- | --- | --- | --- |
+| `lenabarretta/sharada-base` | 150M | 300 MB | 0.813 | 0.008 | 19.8 ms | the default; fine-tune this one |
+| `lenabarretta/sharada-large` | 397M | 794 MB | 0.834 | 0.009 | 26.6 ms | better, and better still on label sets it has never seen |
+| `lenabarretta/sharada-multilingual-base` | 308M | 616 MB | 0.802 | 0.009 | 23.1 ms | the same model over many more languages, on mmBERT |
+| `lenabarretta/sharada-multilingual-small` | 141M | 282 MB | 0.773 | 0.013 | 21.8 ms | half the download, three points behind, and barely faster — for memory, not for latency |
 
 Weights are stored in half precision: the encoder was trained under a float16 autocast, so the bits
 below that were never signal, and the file halves for a shift in the probabilities of about 2e-4.
