@@ -140,8 +140,11 @@ Fit it again on your own labelled examples before trusting the numbers on your o
 ## What it will not do
 
 It does not generate: options or nothing. It reads {text_tokens} tokens of text, so longer documents
-need chunking. It is English. And it is small — where an answer needs a fact that is not in the text in
-front of it, a frontier model wins.
+need chunking. {languages} And there is no medicine, law or code in its training mix: the two medical
+label sets are measured only, and verifying public-health claims lands at the majority-class baseline,
+which is to say it does not work. Those domains need fine-tuning on your own labelled examples.
+Finally it is small — where an answer needs a fact that is not in the text in front of it, a frontier
+model wins.
 
 Apache 2.0.
 """
@@ -170,7 +173,7 @@ FAMILY = (("sharada-base", "ModernBERT-base, 150M", "the default, and the one to
           ("sharada-multilingual-base", "mmBERT-base, 290M", "the same model over many more languages",
            ""),
           ("sharada-multilingual-small", "mmBERT-small, 140M", "narrower body, for throughput rather "
-           "than for one fast answer", "in training"))
+           "than for one fast answer", ""))
 
 
 def family(repo: str) -> str:
@@ -213,6 +216,10 @@ def render(run: pathlib.Path, repo: str) -> str:
         repo=repo,
         family=family(repo),
         encoder=report["encoder"],
+        languages=("It has seen the forty-odd languages of its mix and has not been measured on any "
+                   "outside them." if "mmBERT" in report["encoder"] else
+                   "It is English: the encoder is English-only and so were the label sets it was "
+                   "trained on — the multilingual checkpoints in the table above cover more."),
         parameters=f"{report['parameters'] / 1e6:.0f}M",
         text_tokens=report["arguments"]["text_tokens"],
         ms_per_question=round(latency.get("ms_per_question", float("nan")), 1),
